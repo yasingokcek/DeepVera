@@ -1,51 +1,105 @@
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DeepVera - Medya için AI</title>
-<style>
-body {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(180deg, #A463F2 0%, #4B0082 100%);
-  color: #ffffff;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI DeepVera: Kurumsal İstihbarat Paneli</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+          --bg-main: #fcfcfd;
+          --bg-card: #ffffff;
+          --border-subtle: #f1f3f7;
+          --accent-primary: #2563eb;
+          --text-primary: #0f172a;
+          --text-secondary: #64748b;
+        }
+        body { 
+          font-family: 'Plus Jakarta Sans', sans-serif; 
+          background-color: var(--bg-main);
+          color: var(--text-primary);
+          letter-spacing: -0.01em;
+        }
+        .premium-card {
+          background: white;
+          border: 1px solid var(--border-subtle);
+          box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .premium-card:hover {
+          box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+          transform: translateY(-2px);
+        }
+        .glass-header {
+          background: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Neural Animations */
+        @keyframes neural-rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .neural-glow {
+          background: conic-gradient(from 180deg at 50% 50%, #2563eb 0deg, #1d4ed8 120deg, #3b82f6 240deg, #2563eb 360deg);
+          animation: neural-rotate 10s linear infinite;
+        }
+        @keyframes scan {
+          0% { transform: translateY(-100%); opacity: 0; }
+          50% { opacity: 0.5; }
+          100% { transform: translateY(100%); opacity: 0; }
+        }
+        .scan-line {
+          height: 100px;
+          background: linear-gradient(to bottom, transparent, rgba(37, 99, 235, 0.2), transparent);
+          animation: scan 4s linear infinite;
+        }
+        .btn-primary {
+          background: #0f172a;
+          color: white;
+          transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+          background: #2563eb;
+          box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.3);
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+  }
 }
-.hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  text-align: center;
-}
-.hero h1 {
-  font-size: 3rem;
-  margin: 0 0 1rem 0;
-}
-.hero p {
-  font-size: 1.25rem;
-  margin: 0 0 2rem 0;
-}
-.hero a {
-  color: #4B0082;
-  background-color: #ffffff;
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
-  text-decoration: none;
-  font-weight: bold;
-}
-.hero a:hover {
-  opacity: 0.9;
-}
-</style>
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
-<body>
-  <div class="hero">
-    <h1>AI Gücünüzü 10x'e Çıkarın</h1>
-    <p>DeepVera, medyanızın üretkenliğini artırmak ve manuel işleri yapay zekayla otomatikleştirmek için tasarlanmış bir platformdur.</p>
-    <a href="#">Ücretsiz Deneyin</a>
-  </div>
+<body class="overflow-hidden bg-[#f8fafc]">
+    <div id="root"></div>
+    <!-- Entry point added to fix blank screen issue -->
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

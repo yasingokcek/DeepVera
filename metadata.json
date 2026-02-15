@@ -1,0 +1,7 @@
+{
+  "name": "Copy of AI DeepVera: Command Center",
+  "description": "250M+ şirket datasıyla dünya çapında veri madenciliği ve AI destekli lead üretimi yapan kurumsal istihbarat sistemi.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
