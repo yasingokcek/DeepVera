@@ -30,10 +30,7 @@ const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [view, setView] = useState<ViewState>('landing');
     const [tokenBalance, setTokenBalance] = useState<number>(1500);
-    const [participants, setParticipants] = useState<Participant[]>(() => {
-          const saved = localStorage.getItem('deepvera_leads_cache');
-          return saved ? JSON.parse(saved) : [];
-    });
+    const [participants, setParticipants] = useState<Participant[]>([]);
     const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
     const [selectedSector, setSelectedSector] = useState<string>('tech');
     const [selectedCity, setSelectedCity] = useState<string>('İstanbul');
@@ -47,53 +44,26 @@ const App: React.FC = () => {
     const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
     const stopAnalysisRef = useRef(false);
 
-    // Supabase Auth: oturum durumunu dinle
+    // ─── 1. Supabase Auth dinleyici ───────────────────────────────────────────
     useEffect(() => {
-          // Mevcut oturumu kontrol et
-                  supabase.auth.getSession().then(({ data: { session } }) => {
-                          if (session?.user) {
-                                    const supaUser: User = {
-                                                id: session.user.id,
-                                                name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Kullanıcı',
-                                                email: session.user.email || '',
-                                                isPro: false,
-                                                companyLogo: session.user.user_metadata?.avatar_url || '',
-                                                n8nWebhookUrl: '',
-                                                targetAudience: '',
-                                                salesStrategy: '',
-                                                isGmailConnected: false,
-                                                senderAccounts: [],
-                                                currentSenderIndex: 0,
-                                                globalPitch: '',
-                                                emailSignature: '',
-                                    };
-                                    setUser(supaUser);
-                                    setView('dashboard');
-                          }
-                  });
+          supabase.auth.getSession().then(({ data: { session } }) => {
+                  if (session?.user) {
+                            buildUserFromSession(session.user).then(u => {
+                                        setUser(u);
+                                        setView('dashboard');
+                            });
+                  }
+          });
 
-                  // Oturum değişikliklerini dinle
                   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
                           if (session?.user) {
-                                    const supaUser: User = {
-                                                id: session.user.id,
-                                                name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Kullanıcı',
-                                                email: session.user.email || '',
-                                                isPro: false,
-                                                companyLogo: session.user.user_metadata?.avatar_url || '',
-                                                n8nWebhookUrl: '',
-                                                targetAudience: '',
-                                                salesStrategy: '',
-                                                isGmailConnected: false,
-                                                senderAccounts: [],
-                                                currentSenderIndex: 0,
-                                                globalPitch: '',
-                                                emailSignature: '',
-                                    };
-                                    setUser(supaUser);
-                                    setView('dashboard');
+                                    buildUserFromSession(session.user).then(u => {
+                                                setUser(u);
+                                                setView('dashboard');
+                                    });
                           } else {
                                     setUser(null);
+                                    setParticipants([]);
                                     setView('landing');
                           }
                   });
@@ -101,14 +71,114 @@ const App: React.FC = () => {
                   return () => subscription.unsubscribe();
     }, []);
 
-    // Leads cache'i localStorage'a kaydet
+    // ─── 2. Kullanıcı oturum açınca: profil + leads çek ───────────────────────
     useEffect(() => {
-          localStorage.setItem('deepvera_leads_cache', JSON.stringify(participants));
-    }, [participants]);
+          if (!user?.id) return;
+          loadUserData(user.id);
+    }, [user?.id]);
+
+    // Auth session'dan User nesnesi oluştur (profiles tablosundan token_balance çek)
+    const buildUserFromSession = async (authUser: any): Promise<User> => {
+          const base: User = {
+                  id: authUser.id,
+                  name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Kullanıcı',
+                  email: authUser.email || '',
+                  isPro: false,
+                  companyLogo: authUser.user_metadata?.avatar_url || '',
+                  n8nWebhookUrl: '',
+                  targetAudience: '',
+                  salesStrategy: '',
+                  isGmailConnected: false,
+                  senderAccounts: [],
+                  currentSenderIndex: 0,
+                  globalPitch: '',
+                  emailSignature: '',
+          };
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('token_balance, is_pro, name, avatar, target_audience, sales_strategy, is_gmail_connected, global_pitch, email_signature')
+            .eq('id', authUser.id)
+            .single();
+
+          if (profile) {
+                  base.isPro = profile.is_pro ?? false;
+                  base.name = profile.name || base.name;
+                  base.companyLogo = profile.avatar || base.companyLogo;
+                  base.targetAudience = profile.target_audience || '';
+                  base.salesStrategy = profile.sales_strategy || '';
+                  base.isGmailConnected = profile.is_gmail_connected ?? false;
+                  base.globalPitch = profile.global_pitch || '';
+                  base.emailSignature = profile.email_signature || '';
+                  setTokenBalance(profile.token_balance ?? 1500);
+          }
+
+          return base;
+    };
+
+    // participants tablosundan kullanıcının lead'lerini yükle
+    const loadUserData = async (userId: string) => {
+          const { data: leads, error } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+          if (error) { console.error('Leads yüklenirken hata:', error); return; }
+
+          if (leads && leads.length > 0) {
+                  const mapped: Participant[] = leads.map((row: any) => ({
+                            id: row.id,
+                            name: row.name,
+                            website: row.website || '',
+                            phone: row.phone || '',
+                            email: row.email || '',
+                            linkedin: row.linkedin || '',
+                            instagram: row.instagram || '',
+                            twitter: row.twitter || '',
+                            industry: row.industry || '',
+                            description: row.description || '',
+                            status: row.status || 'completed',
+                            emailSubject: row.email_subject || '',
+                            emailDraft: row.email_draft || '',
+                            icebreaker: '',
+                            location: row.location || '',
+                            automationStatus: row.automation_status || 'idle',
+                            competitors: row.competitors || [],
+                  }));
+                  setParticipants(mapped);
+          }
+    };
+
+    // ─── 3. Supabase'e lead kaydet ─────────────────────────────────────────────
+    const saveLeadToDB = async (lead: Participant, userId: string) => {
+          const { error } = await supabase
+            .from('participants')
+            .upsert({
+                      id: lead.id,
+                      user_id: userId,
+                      name: lead.name,
+                      website: lead.website,
+                      phone: lead.phone,
+                      email: lead.email,
+                      linkedin: lead.linkedin || null,
+                      instagram: lead.instagram || null,
+                      twitter: lead.twitter || null,
+                      industry: lead.industry || null,
+                      description: lead.description || null,
+                      status: lead.status,
+                      email_subject: lead.emailSubject || null,
+                      email_draft: lead.emailDraft || null,
+                      location: lead.location || null,
+                      automation_status: lead.automationStatus || 'idle',
+                      competitors: lead.competitors || [],
+            }, { onConflict: 'id' });
+
+          if (error) console.error('Lead kaydedilirken hata:', error);
+    };
 
     const addLog = (msg: string) => setLogs([msg]);
 
-    // TÜRKÇE KARAKTER DESTEKLİ EXCEL EXPORT (BOM EKLEYEREK)
     const exportToExcel = () => {
           if (participants.length === 0) return;
           const headers = ["Firma Adı", "Web Sitesi", "E-Posta", "Telefon", "Sektör", "Konum", "LinkedIn", "Instagram", "Twitter", "Buzkıran", "E-Posta Başlığı", "E-Posta Taslağı"];
@@ -148,6 +218,7 @@ const App: React.FC = () => {
           }
     };
 
+    // ─── 4. Analiz + DB'ye kaydet ──────────────────────────────────────────────
     const startAnalysis = async () => {
           if (tokenBalance < 1) { setIsPaymentModalOpen(true); return; }
           if (isAutopilot && !user?.n8nWebhookUrl) { setIsIdentityModalOpen(true); return; }
@@ -172,18 +243,32 @@ const App: React.FC = () => {
                   }));
                   setParticipants(prev => [...initialLeads, ...prev]);
                   setStatus(AppStatus.FINDING_DETAILS);
+                  let currentBalance = tokenBalance;
                   for (let i = 0; i < initialLeads.length; i++) {
                             if (stopAnalysisRef.current) break;
                             const current = initialLeads[i];
                             try {
                                         await sleep(500);
                                         const intel = await findCompanyIntel(current.name, current.website, selectedSector, user!, (msg) => addLog(msg));
-                                        const updatedLead = { ...current, ...intel, status: 'completed' as const };
+                                        const updatedLead: Participant = { ...current, ...intel, status: 'completed' as const };
                                         setParticipants(prev => prev.map(p => p.id === current.id ? updatedLead : p));
-                                        setTokenBalance(prev => Math.max(0, prev - 1));
-                                        if (isAutopilot && updatedLead.email?.includes('@')) {
-                                                      await triggerWebhook(updatedLead as Participant);
+
+                              // DB'ye kaydet
+                              if (user?.id) await saveLeadToDB(updatedLead, user.id);
+
+                              // Token bakiyesini düşür (UI + DB)
+                              currentBalance = Math.max(0, currentBalance - 1);
+                                        setTokenBalance(currentBalance);
+                                        if (user?.id) {
+                                                      await supabase
+                                                        .from('profiles')
+                                                        .update({ token_balance: currentBalance })
+                                                        .eq('id', user.id);
                                         }
+
+                              if (isAutopilot && updatedLead.email?.includes('@')) {
+                                            await triggerWebhook(updatedLead);
+                              }
                             } catch (error) {
                                         console.error(error);
                                         setParticipants(prev => prev.map(p => p.id === current.id ? { ...p, status: 'failed' as const } : p));
@@ -199,6 +284,7 @@ const App: React.FC = () => {
     const handleLogout = async () => {
           await supabase.auth.signOut();
           setUser(null);
+          setParticipants([]);
           setView('landing');
     };
 
@@ -288,7 +374,14 @@ const App: React.FC = () => {
                                                                           tokenBalance={tokenBalance}
                                                                           onSelectParticipant={setSelectedParticipant}
                                                                           onExport={exportToExcel}
-                                                                          onClear={() => { if(window.confirm("Havuz boşaltılsın mı?")) setParticipants([]); }}
+                                                                          onClear={async () => {
+                                                                                              if (window.confirm("Havuz boşaltılsın mı?")) {
+                                                                                                                    if (user?.id) {
+                                                                                                                                            await supabase.from('participants').delete().eq('user_id', user.id);
+                                                                                                                      }
+                                                                                                                    setParticipants([]);
+                                                                                                }
+                                                                          }}
                                                                         />
                                                         <CompanyDetail
                                                                           participant={selectedParticipant}
@@ -308,7 +401,16 @@ const App: React.FC = () => {
                                             isOpen={isPaymentModalOpen}
                                             isPro={user?.isPro}
                                             onClose={() => setIsPaymentModalOpen(false)}
-                                            onSuccess={(t) => setTokenBalance(b => b + t)}
+                                            onSuccess={async (t) => {
+                                                            const newBalance = tokenBalance + t;
+                                                            setTokenBalance(newBalance);
+                                                            if (user?.id) {
+                                                                              await supabase
+                                                                                                  .from('profiles')
+                                                                                                  .update({ token_balance: newBalance })
+                                                                                                  .eq('id', user.id);
+                                                            }
+                                            }}
                                             onUpgrade={() => user && setUser({...user, isPro: true})}
                                           />
                     </>>
